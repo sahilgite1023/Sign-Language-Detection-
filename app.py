@@ -28,6 +28,13 @@ app=Flask(__name__)
 def healthz():
     return 'ok', 200
 
+# Simple config endpoint for client feature toggles
+@app.route('/config')
+def config():
+    return jsonify({
+        'keypointOnly': KEYPOINT_ONLY
+    }), 200
+
 # Create required directories
 required_dirs = ['uploads', 'images/marked/Y', 'images/skeleton/Y', 'images/marked/test', 'images/skeleton/test']
 for dir_path in required_dirs:

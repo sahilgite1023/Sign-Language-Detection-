@@ -413,6 +413,32 @@
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script>
         // Make these functions global for the page
+        async function setMode(mode) {
+            try {
+                const res = await fetch('/set_mode', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mode })
+                });
+                const data = await res.json();
+                if (data && data.note) {
+                    document.getElementById('detect-status').textContent = data.note;
+                }
+            } catch (_) {}
+        }
+        async function setClassifier(type) {
+            try {
+                const res = await fetch('/set_classifier', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type })
+                });
+                const data = await res.json();
+                if (data && data.note) {
+                    document.getElementById('detect-status').textContent = data.note;
+                }
+            } catch (_) {}
+        }
         function scrollToDetectionAndStart() {
             const detectionSection = document.querySelector('.realtime-section');
             if (detectionSection) {
@@ -427,7 +453,7 @@
             if (aboutSection) aboutSection.scrollIntoView({ behavior: 'smooth' });
         }
         // Update active nav link on scroll
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             const sections = document.querySelectorAll('section, .hero-section');
             const navLinks = document.querySelectorAll('.navbar-nav .nav-link');
 
@@ -468,6 +494,28 @@
                     scrollToDetectionAndStart();
                 };
             }
+
+            // Fetch server config to adapt UI (disable Phrase/CNN in keypoint-only)
+            try {
+                const cfgRes = await fetch('/config');
+                const cfg = await cfgRes.json();
+                if (cfg && cfg.keypointOnly) {
+                    const phraseBtn = document.getElementById('phrase-mode-btn');
+                    if (phraseBtn) {
+                        phraseBtn.disabled = true;
+                        phraseBtn.title = 'Disabled in lightweight deployment';
+                        phraseBtn.classList.remove('btn-outline-primary');
+                        phraseBtn.classList.add('btn-outline-secondary');
+                    }
+                    const originalRadio = document.getElementById('original-classifier');
+                    if (originalRadio) {
+                        originalRadio.checked = false;
+                        originalRadio.disabled = true;
+                        const keypointRadio = document.getElementById('keypoint-classifier');
+                        if (keypointRadio) keypointRadio.checked = true;
+                    }
+                }
+            } catch (_) {}
         });
 
         // Mode selector functionality
@@ -614,6 +662,14 @@
             document.getElementById('recognized-right').textContent = '-';
             lastLeft = null; lastRight = null;
         };
+
+        // Wire classifier radio change to backend
+        document.getElementById('keypoint-classifier').addEventListener('change', function(){
+            if (this.checked) setClassifier('keypoint');
+        });
+        document.getElementById('original-classifier').addEventListener('change', function(){
+            if (this.checked) setClassifier('cnn');
+        });
     </script>
 </body>
 </html>

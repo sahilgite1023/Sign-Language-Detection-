@@ -1,16 +1,9 @@
-# Deployment-only trimmed requirements:
-# - Removed matplotlib and training dependencies; not needed at runtime.
-# - TensorFlow 2.12.0 aligns with numpy 1.23.x and protobuf 3.20.x on Windows.
-# If size is a concern, consider replacing tensorflow with tflite-runtime and adjusting code accordingly.
+# Deployment requirements (lightweight, keypoint-only runtime):
+# - Removed TensorFlow; using Mediapipe + TFLite keypoint classifier only.
+# - If you re-enable phrase/CNN modes, add tensorflow==2.12.0 back and redeploy.
 flask==2.3.3
 numpy==1.23.5
 opencv-python==4.8.1.78
 mediapipe==0.10.11
-tensorflow==2.12.0
 protobuf==3.20.3
 gunicorn==21.2.0
-
-# Optional: if available for your OS/arch, prefer using tflite-runtime to avoid full TF import
-# tflite-runtime
-# If you use tflite-runtime separately, uncomment the next line
-# tflite-runtime 
