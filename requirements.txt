@@ -2,6 +2,8 @@
 # - Removed matplotlib and training dependencies; not needed at runtime.
 # - TensorFlow 2.12.0 aligns with numpy 1.23.x and protobuf 3.20.x on Windows.
 # If size is a concern, consider replacing tensorflow with tflite-runtime and adjusting code accordingly.
+setuptools==68.2.2
+wheel==0.42.0
 flask==2.3.3
 werkzeug==2.3.8
 numpy==1.23.5
