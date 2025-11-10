@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Our Team - Sign Language Recognizer</title>
+    <!--Font-awsome-->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/team.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@200&display=swap" rel="stylesheet">
+    <link href="https://cdn.bootcss.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.bootcss.com/popper.js/1.12.9/umd/popper.min.js"></script>
+    <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdn.bootcss.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+    <script src="https://kit.fontawesome.com/d733855d1a.js" crossorigin="anonymous"></script>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background:linear-gradient(135deg,#4361ee,#3f37c9);box-shadow:0 4px 18px rgba(0,0,0,.15)">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/">
+                <i class="fas fa-hand-american-sign-language-interpreting me-2"></i>
+                SignSense
+            </a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navTeam" aria-controls="navTeam" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navTeam">
+                <ul class="navbar-nav ml-auto">
+                    <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/about">About</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/contact">Contact</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="/team">Team</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="wrapper" style="padding:60px 0;background:#f5f7fa;">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h1 class="display-5 fw-bold" style="color:#2d2f33;">Project Team</h1>
+                <p class="lead" style="max-width:720px;margin:0 auto;color:#555;">The passionate minds building an accessible sign language experience.</p>
+            </div>
+            <div class="row g-4 justify-content-center">
+                <div class="col-md-4 col-lg-3">
+                    <div class="card h-100 border-0 shadow-sm" style="border-radius:20px;">
+                        <div class="card-body text-center p-4">
+                            <img src="https://ui-avatars.com/api/?name=Sahil+Gite&size=220&background=4361ee&color=fff" alt="Sahil Gite" class="rounded-circle mb-3" style="width:140px;height:140px;object-fit:cover;box-shadow:0 8px 24px rgba(67,97,238,.35);">
+                            <h3 class="h5 fw-bold mb-1">Sahil Gite</h3>
+                            <p class="text-muted mb-2">Lead Developer</p>
+                            <div class="d-flex justify-content-center gap-3">
+                                <a href="https://github.com/sahilgite1023" target="_blank" rel="noopener" class="text-primary" title="GitHub"><i class="fab fa-github fa-lg"></i></a>
+                                <a href="https://www.linkedin.com/in/sahilgite2003" target="_blank" rel="noopener" class="text-primary" title="LinkedIn"><i class="fab fa-linkedin fa-lg"></i></a>
+                                <a href="mailto:sahilgite511@gmail.com" class="text-primary" title="Email"><i class="fas fa-envelope fa-lg"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 col-lg-3">
+                    <div class="card h-100 border-0 shadow-sm" style="border-radius:20px;">
+                        <div class="card-body text-center p-4">
+                            <img src="https://ui-avatars.com/api/?name=Anushka+Shinde&size=220&background=4361ee&color=fff" alt="Anushka Shinde" class="rounded-circle mb-3" style="width:140px;height:140px;object-fit:cover;box-shadow:0 8px 24px rgba(67,97,238,.35);">
+                            <h3 class="h5 fw-bold mb-1">Anushka Shinde</h3>
+                            <p class="text-muted mb-2">ML Engineer</p>
+                            <div class="d-flex justify-content-center gap-3">
+                                <a href="https://github.com/anushkashinde7188" target="_blank" rel="noopener" class="text-primary" title="GitHub"><i class="fab fa-github fa-lg"></i></a>
+                                <a href="https://www.linkedin.com/in/anushkashinde15" target="_blank" rel="noopener" class="text-primary" title="LinkedIn"><i class="fab fa-linkedin fa-lg"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 col-lg-3">
+                    <div class="card h-100 border-0 shadow-sm" style="border-radius:20px;">
+                        <div class="card-body text-center p-4">
+                            <img src="https://ui-avatars.com/api/?name=Shriram+Mange&size=220&background=4361ee&color=fff" alt="Shriram Mange" class="rounded-circle mb-3" style="width:140px;height:140px;object-fit:cover;box-shadow:0 8px 24px rgba(67,97,238,.35);">
+                            <h3 class="h5 fw-bold mb-1">Shriram Mange</h3>
+                            <p class="text-muted mb-2">UI/UX Designer</p>
+                            <div class="d-flex justify-content-center gap-3">
+                                <a href="https://github.com/Shriram2005" target="_blank" rel="noopener" class="text-primary" title="GitHub"><i class="fab fa-github fa-lg"></i></a>
+                                <a href="https://www.linkedin.com/in/shriram-mange" target="_blank" rel="noopener" class="text-primary" title="LinkedIn"><i class="fab fa-linkedin fa-lg"></i></a>
+                                <a href="https://shrirammange.tech" target="_blank" rel="noopener" class="text-primary" title="Portfolio"><i class="fas fa-globe fa-lg"></i></a>
+                                <a href="mailto:mange.shriram@gmail.com" class="text-primary" title="Email"><i class="fas fa-envelope fa-lg"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="mt-5" style="background:#212529;color:#fff;padding:40px 0;">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <h5 class="fw-bold"><i class="fas fa-hand-american-sign-language-interpreting me-2"></i>SignSense</h5>
+                    <p style="opacity:.75;max-width:400px;">Advancing inclusive communication through real-time sign language recognition.</p>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <h6 class="fw-semibold">Explore</h6>
+                    <ul class="list-unstyled">
+                        <li><a href="/" class="text-decoration-none text-light">Home</a></li>
+                        <li><a href="/about" class="text-decoration-none text-light">About</a></li>
+                        <li><a href="/contact" class="text-decoration-none text-light">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <h6 class="fw-semibold">Connect</h6>
+                    <div class="d-flex gap-3">
+                        <a href="#" class="text-light"><i class="fab fa-github fa-lg"></i></a>
+                        <a href="#" class="text-light"><i class="fab fa-linkedin fa-lg"></i></a>
+                    </div>
+                </div>
+            </div>
+            <hr style="border-color:rgba(255,255,255,.1)">
+            <div class="text-center" style="font-size:.85rem;opacity:.6;">© 2025 SignSense. All rights reserved.</div>
+        </div>
+    </footer>
+
+</body>
+</html>

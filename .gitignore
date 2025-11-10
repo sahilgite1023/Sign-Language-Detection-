@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv/
+env/
+venv/
+
+# OS/files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Byte-compiled / caches
+.pytest_cache/
+.mypy_cache/
+
+# Build
+build/
+dist/
+*.egg-info/
+
+# Logs
+*.log
+
+# App artifacts
+uploads/
+images/
+training_history.png
+
+# Models (keep small ones tracked; ignore large checkpoints if added later)
+**/*.ckpt
+**/*.tfrecord
+**/*.pb
+**/checkpoint
+
+# Node (if ever used for static tooling)
+node_modules/
+
+# Backup
+*.bak
+*.swp
+
+# Nested copied project folder
+Sign-Language-Recognition/
