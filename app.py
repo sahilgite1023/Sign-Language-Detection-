@@ -546,4 +546,6 @@ def predict_frame():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Bind explicitly for Render (or any container) so port detection succeeds
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port)
