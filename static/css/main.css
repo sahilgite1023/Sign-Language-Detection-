@@ -147,6 +147,52 @@ h1, h2, h3, h4, h5, h6 {
     opacity: 0.9;
 }
 
+/* Hero layered visuals (uses home.jpg and image.png) */
+.hero-visual {
+    position: relative;
+    max-width: 520px;
+    margin-left: auto;
+    filter: drop-shadow(0 18px 40px rgba(0,0,0,.25));
+}
+.hero-visual::after {
+    content: '';
+    position: absolute;
+    inset: -8% -6% -12% -6%;
+    background: radial-gradient(60% 60% at 40% 30%, rgba(76,201,240,0.35) 0%, rgba(99,102,241,0.15) 40%, rgba(255,255,255,0) 70%);
+    z-index: 0;
+}
+.hero-main-img {
+    position: relative;
+    display: block;
+    width: 100%;
+    border-radius: 26px;
+    border: 1px solid rgba(255,255,255,0.25);
+    box-shadow: 0 14px 40px rgba(13, 13, 13, 0.35), inset 0 0 0 1px rgba(255,255,255,0.08);
+    transform: perspective(900px) rotateY(-6deg) rotateX(2deg);
+    transform-origin: center right;
+    z-index: 1;
+}
+.hero-badge-img {
+    position: absolute;
+    bottom: -22px;
+    left: -22px;
+    width: 180px;
+    aspect-ratio: 1/1;
+    object-fit: cover;
+    border-radius: 24px;
+    border: 1px solid rgba(255,255,255,0.5);
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35);
+    background: #fff;
+    transform: rotate(-6deg);
+    z-index: 2;
+    animation: floatY 4.8s ease-in-out infinite;
+}
+
+@keyframes floatY {
+    0%, 100% { transform: translateY(0) rotate(-6deg); }
+    50% { transform: translateY(-8px) rotate(-6deg); }
+}
+
 .btn-primary {
     background-color: white;
     color: var(--primary-color);
@@ -525,6 +571,41 @@ h1, h2, h3, h4, h5, h6 {
 
 .how-it-works-section {
     background-color: #f8f9fa;
+}
+
+/* About images polish */
+.about-image-wrapper {
+    position: relative;
+}
+.about-image-polished {
+    border-radius: 24px !important;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.18);
+}
+.about-floating-badge {
+    position: absolute;
+    right: -14px;
+    bottom: -14px;
+    width: 140px;
+    height: 140px;
+    border-radius: 22px;
+    background: #ffffff;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 14px 36px rgba(0,0,0,0.18);
+    border: 1px solid rgba(99,102,241,0.25);
+}
+.about-floating-badge img {
+    max-width: 86%;
+    max-height: 86%;
+    object-fit: contain;
+}
+
+@media (max-width: 992px) {
+    .hero-visual { max-width: 440px; }
+    .hero-badge-img { width: 150px; bottom: -18px; left: -18px; }
+}
+@media (max-width: 768px) {
+    .hero-visual { display: none; }
 }
 
 .step-card {
