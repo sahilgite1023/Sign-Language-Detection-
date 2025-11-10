@@ -127,8 +127,8 @@
                 </div>
                 <div class="col-lg-6 d-none d-lg-block">
                     <div class="hero-visual">
-                        <img src="/static/img/home.jpg" alt="Sign language demo" class="hero-main-img"/>
-                        <img src="/static/img/image.png" alt="AI badge" class="hero-badge-img"/>
+                        <img src="{{ url_for('static', filename='img/home.jpg') }}" alt="Sign language demo" class="hero-main-img"/>
+                        <img src="{{ url_for('static', filename='img/image.png') }}" alt="AI badge" class="hero-badge-img"/>
                     </div>
                 </div>
             </div>
@@ -144,9 +144,9 @@
             <div class="row">
                 <div class="col-lg-6 mb-4 mb-lg-0">
                     <div class="about-image-wrapper">
-                        <img src="/static/img/home.jpg" alt="About SignSense" class="img-fluid rounded about-image-polished">
+                        <img src="{{ url_for('static', filename='img/home.jpg') }}" alt="About SignSense" class="img-fluid rounded about-image-polished">
                         <div class="about-floating-badge">
-                            <img src="/static/img/image.png" alt="AI badge decorative"/>
+                            <img src="{{ url_for('static', filename='img/image.png') }}" alt="AI badge decorative"/>
                         </div>
                     </div>
                 </div>
@@ -212,6 +212,7 @@
             <div class="detection-controls">
                 <button id="start-detection-btn" class="btn btn-success btn-lg">Start</button>
                 <button id="stop-detection-btn" class="btn btn-secondary btn-lg" style="display:none;">Stop</button>
+                <span id="detect-status" class="ms-3 text-muted" style="font-weight:600;"></span>
             </div>
             <div id="detection-content" style="display:none;" class="mt-3">
                 <div class="live-detection-wrapper">
@@ -510,10 +511,13 @@
 
             // Prepare canvas with video dimensions
             const setCanvasSize = () => {
-                const w = videoEl.videoWidth || 640;
-                const h = videoEl.videoHeight || 480;
-                canvasEl.width = w;
-                canvasEl.height = h;
+                // Downscale frames sent to server to reduce bandwidth/CPU on Render
+                const vw = videoEl.videoWidth || 640;
+                const vh = videoEl.videoHeight || 480;
+                const targetW = 480; // good balance of quality vs size
+                const scale = Math.min(1, targetW / vw);
+                canvasEl.width = Math.max(160, Math.round(vw * scale));
+                canvasEl.height = Math.max(120, Math.round(vh * scale));
             };
             setCanvasSize();
             videoEl.addEventListener('loadedmetadata', setCanvasSize, { once: true });
@@ -524,7 +528,7 @@
             recognizedTextInterval = setInterval(async () => {
                 if (!mediaStream) return;
                 ctx.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
-                const dataUrl = canvasEl.toDataURL('image/jpeg', 0.8);
+                const dataUrl = canvasEl.toDataURL('image/jpeg', 0.6);
                 try {
                     const res = await fetch('/predict_frame', {
                         method: 'POST',
@@ -533,6 +537,7 @@
                     });
                     const data = await res.json();
                     if (data && data.success) {
+                        document.getElementById('detect-status').textContent = '';
                         // Resize overlay canvas if needed
                         if (overlayCanvas.width !== canvasEl.width || overlayCanvas.height !== canvasEl.height) {
                             overlayCanvas.width = canvasEl.width;
@@ -563,7 +568,8 @@
                                 overlayCtx.fillText(label, boxX + padding, boxY + 19);
                             });
                         }
-                        // Append characters if changed and valid
+                            console.error('predict_frame error', e);
+                            document.getElementById('detect-status').textContent = 'Prediction error. Retrying…';
                         if (data.left && data.left !== '-' && data.left !== lastLeft) {
                             const el = document.getElementById('recognized-left');
                             el.textContent = (el.textContent === '-' ? '' : el.textContent) + data.left;
@@ -582,7 +588,7 @@
                 } catch (e) {
                     console.error('predict_frame error', e);
                 }
-            }, 500);
+            }, 700);
         }
 
         function stopDetection() {
