@@ -201,36 +201,31 @@
                     <p class="section-subtitle">Try our live recognition system using your webcam</p>
                 </div>
             </div>
-            <div class="video-controls mb-3" style="display:flex;gap:12px;">
+            <div class="detection-controls">
                 <button id="start-detection-btn" class="btn btn-success btn-lg">Start</button>
                 <button id="stop-detection-btn" class="btn btn-secondary btn-lg" style="display:none;">Stop</button>
             </div>
-            <div id="detection-content" style="display:none;">
-                <div class="row justify-content-center">
-                    <div class="col-lg-8 d-flex align-items-start">
-                        <div class="video-container" style="width: 100%; max-width: 800px; margin: 0 auto;">
-                            <img id="detection-video" src="{{ url_for('video_feed') }}" style="width: 100%; border-radius: 10px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-                        </div>
-                        <!-- Side panel for recognized text -->
-                        <div id="recognized-text-panel" style="min-width:420px;max-width:700px;height:320px;margin-left:48px;padding:32px 28px;background:#f8f9fa;border-radius:18px;box-shadow:0 6px 18px rgba(0,0,0,0.13);display:flex;flex-direction:column;justify-content:flex-start;">
-                            <h4 class="mb-4">Recognized Text</h4>
-                            <div style="overflow-y:auto;max-height:110px;word-break:break-all;font-size:1.2rem;">
-                                <b>Left Hand:</b> <span id="recognized-left">-</span>
-                            </div>
-                            <div class="mt-3" style="overflow-y:auto;max-height:110px;word-break:break-all;font-size:1.2rem;">
-                                <b>Right Hand:</b> <span id="recognized-right">-</span>
-                            </div>
-                            <button id="clear-recognized-btn" class="btn btn-outline-danger btn-md mt-4" style="width:100px;align-self:flex-start;">Clear</button>
-                        </div>
+            <div id="detection-content" style="display:none;" class="mt-3">
+                <div class="live-detection-wrapper">
+                    <div class="video-frame">
+                        <img id="detection-video" alt="Live video" src="{{ url_for('video_feed') }}">
                     </div>
+                    <aside class="recognized-panel" aria-live="polite">
+                        <h4>Recognized Text</h4>
+                        <div class="recognized-stream">
+                            <div><b>Left Hand:</b> <span id="recognized-left">-</span></div>
+                            <div class="mt-3"><b>Right Hand:</b> <span id="recognized-right">-</span></div>
+                        </div>
+                        <button id="clear-recognized-btn" class="btn btn-outline-danger clear-btn">Clear</button>
+                    </aside>
                 </div>
             </div>
-            <div class="recognition-controls mt-4 text-center">
+            <div class="recognition-controls mt-4 text-center mode-toggle-group">
                 <div class="btn-group" role="group" aria-label="Recognition Mode">
                     <button type="button" class="btn btn-primary active" id="letter-mode-btn" onclick="setMode('letter')">Letter Mode</button>
                     <button type="button" class="btn btn-outline-primary" id="phrase-mode-btn" onclick="setMode('phrase')">Phrase Mode</button>
                 </div>
-                <div class="mt-3">
+                <div class="mt-3 classifier-options">
                     <div class="form-check form-check-inline">
                         <input class="form-check-input" type="radio" name="classifier-type" id="keypoint-classifier" value="keypoint" checked>
                         <label class="form-check-label" for="keypoint-classifier">A-Z Keypoint Classifier</label>
