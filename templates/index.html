@@ -208,7 +208,8 @@
             <div id="detection-content" style="display:none;" class="mt-3">
                 <div class="live-detection-wrapper">
                     <div class="video-frame">
-                        <img id="detection-video" alt="Live video" src="{{ url_for('video_feed') }}">
+                        <video id="detection-video" autoplay playsinline muted></video>
+                        <canvas id="detection-canvas" style="display:none;"></canvas>
                     </div>
                     <aside class="recognized-panel" aria-live="polite">
                         <h4>Recognized Text</h4>
@@ -477,27 +478,81 @@
 
         let recognizedTextInterval = null;
 
-        function startDetection() {
+        let mediaStream = null;
+        let lastLeft = null;
+        let lastRight = null;
+        async function startDetection() {
             document.getElementById('detection-content').style.display = '';
             document.getElementById('start-detection-btn').style.display = 'none';
             document.getElementById('stop-detection-btn').style.display = '';
-            document.getElementById('detection-video').src = "{{ url_for('video_feed') }}";
-            // Start polling recognized text
-            recognizedTextInterval = setInterval(function() {
-                fetch('/recognized_text')
-                    .then(response => response.json())
-                    .then(data => {
-                        document.getElementById('recognized-left').textContent = (data.left_hand || '-').slice(0, 60);
-                        document.getElementById('recognized-right').textContent = (data.right_hand || '-').slice(0, 60);
+
+            const videoEl = document.getElementById('detection-video');
+            const canvasEl = document.getElementById('detection-canvas');
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+                videoEl.srcObject = mediaStream;
+                await videoEl.play();
+            } catch (e) {
+                alert('Camera access denied or unavailable.');
+                return;
+            }
+
+            // Prepare canvas with video dimensions
+            const setCanvasSize = () => {
+                const w = videoEl.videoWidth || 640;
+                const h = videoEl.videoHeight || 480;
+                canvasEl.width = w;
+                canvasEl.height = h;
+            };
+            setCanvasSize();
+            videoEl.addEventListener('loadedmetadata', setCanvasSize, { once: true });
+
+            const ctx = canvasEl.getContext('2d');
+            recognizedTextInterval = setInterval(async () => {
+                if (!mediaStream) return;
+                ctx.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
+                const dataUrl = canvasEl.toDataURL('image/jpeg', 0.8);
+                try {
+                    const res = await fetch('/predict_frame', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ image: dataUrl })
                     });
-            }, 400);
+                    const data = await res.json();
+                    if (data && data.success) {
+                        // Append characters if changed and valid
+                        if (data.left && data.left !== '-' && data.left !== lastLeft) {
+                            const el = document.getElementById('recognized-left');
+                            el.textContent = (el.textContent === '-' ? '' : el.textContent) + data.left;
+                            lastLeft = data.left;
+                        } else if (data.left === '-') {
+                            lastLeft = null;
+                        }
+                        if (data.right && data.right !== '-' && data.right !== lastRight) {
+                            const er = document.getElementById('recognized-right');
+                            er.textContent = (er.textContent === '-' ? '' : er.textContent) + data.right;
+                            lastRight = data.right;
+                        } else if (data.right === '-') {
+                            lastRight = null;
+                        }
+                    }
+                } catch (e) {
+                    console.error('predict_frame error', e);
+                }
+            }, 500);
         }
 
         function stopDetection() {
             document.getElementById('detection-content').style.display = 'none';
             document.getElementById('start-detection-btn').style.display = '';
             document.getElementById('stop-detection-btn').style.display = 'none';
-            document.getElementById('detection-video').src = '';
+            const videoEl = document.getElementById('detection-video');
+            if (videoEl && videoEl.srcObject) {
+                videoEl.pause();
+                videoEl.srcObject.getTracks().forEach(t => t.stop());
+                videoEl.srcObject = null;
+            }
+            mediaStream = null;
             if (recognizedTextInterval) {
                 clearInterval(recognizedTextInterval);
                 recognizedTextInterval = null;
@@ -508,11 +563,9 @@
         document.getElementById('stop-detection-btn').onclick = stopDetection;
 
         document.getElementById('clear-recognized-btn').onclick = function() {
-            fetch('/clear_recognized_text', {method: 'POST'})
-                .then(() => {
-                    document.getElementById('recognized-left').textContent = '-';
-                    document.getElementById('recognized-right').textContent = '-';
-                });
+            document.getElementById('recognized-left').textContent = '-';
+            document.getElementById('recognized-right').textContent = '-';
+            lastLeft = null; lastRight = null;
         };
     </script>
 </body>

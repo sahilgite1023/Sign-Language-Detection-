@@ -57,7 +57,7 @@ python app.py
 # Open http://127.0.0.1:5000 in your browser
 ```
 
-Camera note: The server process reads frames from the local webcam (OpenCV). For cloud hosting, this approach won’t access a user’s browser camera; you’d use a client‑side capture (e.g., WebRTC) and send frames to the server or run inference in the browser.
+Camera note: For public hosting, the app now uses the browser camera (getUserMedia) and sends frames to `/predict_frame` for inference. No server webcam needed.
 
 ## Usage tips
 
@@ -78,7 +78,22 @@ Camera note: The server process reads frames from the local webcam (OpenCV). For
 - High CPU usage
   - Use the TFLite keypoint classifier mode; reduce frame size or FPS if needed.
 - Blank video feed in browser
-  - Ensure the server console shows frames being processed and no OpenCV errors.
+  - Allow camera permission in your browser; frames are captured client-side and posted to the server.
+
+## Deploy (Docker / Render / Railway)
+
+Option A — Docker run locally:
+
+```powershell
+docker build -t sign-sense .
+docker run -p 5000:5000 sign-sense
+```
+
+Option B — Render / Railway:
+- Use included `Dockerfile` OR rely on buildpack with `Procfile`.
+- Python version: 3.10; install from `requirements.txt`.
+- Procfile command: `web: gunicorn app:app --workers=1 --threads=4 --timeout=90 --bind 0.0.0.0:$PORT`
+- First visit prompts for camera permission; frames POST to `/predict_frame`.
 
 ## Development
 

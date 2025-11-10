@@ -171,6 +171,110 @@ def pre_process_landmark(landmark_list):
     
     return temp_landmark_list
 
+def predict_on_frame(img):
+    """
+    Run hand detection and classification on a single BGR frame.
+    Returns (left_char, right_char, left_conf, right_conf).
+    If only one hand is detected, it will populate the first slot and keep the other as '-'.
+    """
+    left_char = '-'
+    right_char = '-'
+    left_conf = 0.0
+    right_conf = 0.0
+
+    try:
+        imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        imgRGB.flags.writeable = False
+        results = hands.process(imgRGB)
+        imgRGB.flags.writeable = True
+
+        if results.multi_hand_landmarks:
+            # Process up to two hands
+            assigned = 0
+            for hand_landmarks in results.multi_hand_landmarks:
+                # Bounding box
+                x_min = y_min = float('inf')
+                x_max = y_max = float('-inf')
+                for landmark in hand_landmarks.landmark:
+                    x, y = int(landmark.x * img.shape[1]), int(landmark.y * img.shape[0])
+                    x_min = min(x_min, x)
+                    x_max = max(x_max, x)
+                    y_min = min(y_min, y)
+                    y_max = max(y_max, y)
+                x_min = max(0, x_min - offset)
+                y_min = max(0, y_min - offset)
+                x_max = min(img.shape[1], x_max + offset)
+                y_max = min(img.shape[0], y_max + offset)
+
+                landmark_list = calc_landmark_list(img, hand_landmarks)
+                pre_processed_landmark_list = pre_process_landmark(landmark_list)
+
+                predicted_text = '-'
+                confidence = 0.0
+
+                if recognition_mode == 'phrase':
+                    imgWhite = np.ones((imgSize, imgSize, 3), np.uint8) * 255
+                    imgCrop = img[y_min:y_max, x_min:x_max]
+                    aspectRatio = (y_max - y_min) / (x_max - x_min) if (x_max - x_min) > 0 else 1
+                    if aspectRatio > 1:
+                        k = imgSize / (y_max - y_min)
+                        wCal = math.ceil(k * (x_max - x_min))
+                        if wCal > 0:
+                            imgResize = cv2.resize(imgCrop, (wCal, imgSize))
+                            wGap = math.ceil((imgSize-wCal)/2)
+                            imgWhite[:, wGap:wGap+wCal] = imgResize
+                    else:
+                        k = imgSize / (x_max - x_min)
+                        hCal = math.ceil(k * (y_max - y_min))
+                        if hCal > 0:
+                            imgResize = cv2.resize(imgCrop, (imgSize, hCal))
+                            hGap = math.ceil((imgSize-hCal)/2)
+                            imgWhite[hGap:hGap+hCal, :] = imgResize
+                    prediction, index = classifier.getPrediction(imgWhite, draw=False)
+                    predicted_text = labels[index]
+                    confidence = float(np.max(prediction))
+                else:
+                    if classifier_type == 'keypoint':
+                        hand_sign_id = keypoint_classifier(pre_processed_landmark_list)
+                        predicted_text = keypoint_classifier_labels[hand_sign_id]
+                        confidence = 1.0
+                    else:
+                        imgWhite = np.ones((imgSize, imgSize, 3), np.uint8) * 255
+                        imgCrop = img[y_min:y_max, x_min:x_max]
+                        aspectRatio = (y_max - y_min) / (x_max - x_min) if (x_max - x_min) > 0 else 1
+                        if aspectRatio > 1:
+                            k = imgSize / (y_max - y_min)
+                            wCal = math.ceil(k * (x_max - x_min))
+                            if wCal > 0:
+                                imgResize = cv2.resize(imgCrop, (wCal, imgSize))
+                                wGap = math.ceil((imgSize-wCal)/2)
+                                imgWhite[:, wGap:wGap+wCal] = imgResize
+                        else:
+                            k = imgSize / (x_max - x_min)
+                            hCal = math.ceil(k * (y_max - y_min))
+                            if hCal > 0:
+                                imgResize = cv2.resize(imgCrop, (imgSize, hCal))
+                                hGap = math.ceil((imgSize-hCal)/2)
+                                imgWhite[hGap:hGap+hCal, :] = imgResize
+                        img_array = cv2.resize(imgWhite, (IMG_SIZE, IMG_SIZE))
+                        img_array = preprocess_input(img_array)
+                        img_array = np.expand_dims(img_array, axis=0)
+                        prediction = letter_model.predict(img_array)
+                        predicted_text = chr(ord('A') + np.argmax(prediction[0]))
+                        confidence = float(np.max(prediction[0]))
+
+                if assigned == 0:
+                    left_char, left_conf = predicted_text, confidence
+                else:
+                    right_char, right_conf = predicted_text, confidence
+                assigned += 1
+                if assigned >= 2:
+                    break
+    except Exception as e:
+        print(f"predict_on_frame error: {e}")
+
+    return left_char, right_char, left_conf, right_conf
+
 @app.route('/set_mode', methods=['POST'])
 def set_mode():
     global recognition_mode
@@ -422,6 +526,34 @@ def clear_recognized_text():
     recognized_words_global = ["", ""]
     clear_flag = True
     return jsonify({'status': 'cleared'})
+
+@app.route('/predict_frame', methods=['POST'])
+def predict_frame():
+    """Accepts JSON { image: 'data:image/jpeg;base64,...' } and returns predictions."""
+    try:
+        data = request.get_json(force=True)
+        img_b64 = data.get('image', '')
+        if not img_b64:
+            return jsonify({'success': False, 'error': 'No image provided'}), 400
+        # Strip header if present
+        if ',' in img_b64:
+            img_b64 = img_b64.split(',')[1]
+        img_bytes = base64.b64decode(img_b64)
+        np_arr = np.frombuffer(img_bytes, np.uint8)
+        img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        if img is None:
+            return jsonify({'success': False, 'error': 'Invalid image data'}), 400
+
+        left_char, right_char, left_conf, right_conf = predict_on_frame(img)
+        return jsonify({
+            'success': True,
+            'left': left_char,
+            'right': right_char,
+            'left_conf': left_conf,
+            'right_conf': right_conf
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
