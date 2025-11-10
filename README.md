@@ -1,5 +1,12 @@
 # Sign Language Recognition (Flask)
 
+
+
+
+
+https://github.com/user-attachments/assets/2f06b4d5-2c68-479a-af59-e344fe6b67da
+
+
 Real‑time sign language recognition web app built with Flask, OpenCV, MediaPipe, and TensorFlow/TFLite. It detects hand landmarks from your webcam and classifies them into letters/phrases, streaming results to a clean, responsive UI.
 
 Tip: add your own screenshot (e.g., `static/img/screenshot.png`) and reference it here if you want a visual preview on GitHub.
