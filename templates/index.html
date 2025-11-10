@@ -516,6 +516,26 @@
                     }
                 }
             } catch (_) {}
+
+            // Insecure context notice (camera blocked on plain HTTP non-localhost origins)
+            if (!window.isSecureContext && !/^(localhost|127\.0\.0\.1)$/i.test(location.hostname)) {
+                const statusEl = document.getElementById('detect-status');
+                if (statusEl) {
+                    statusEl.textContent = 'Camera blocked: use https:// or localhost. See help below.';
+                }
+                const hero = document.querySelector('.realtime-section');
+                if (hero) {
+                    const warn = document.createElement('div');
+                    warn.style.background = '#ffefc3';
+                    warn.style.border = '1px solid #e0b300';
+                    warn.style.padding = '12px 16px';
+                    warn.style.borderRadius = '10px';
+                    warn.style.fontSize = '0.95rem';
+                    warn.style.marginTop = '10px';
+                    warn.innerHTML = '<b>Why camera access is denied?</b> Browsers only allow getUserMedia on HTTPS or localhost. Options: <ol style="margin:6px 0 0 18px;padding:0"><li>Open http://localhost:' + location.port + ' instead of the LAN IP.</li><li>Run with HTTPS (set USE_ADHOC_SSL=1) then accept the self-signed cert.</li><li>Use a tunnel (ngrok/localtunnel) to get an HTTPS URL.</li><li>Dev override: Chrome flag \'Insecure origins treated as secure\'.</li></ol>';
+                    hero.querySelector('.container')?.prepend(warn);
+                }
+            }
         });
 
         // Mode selector functionality

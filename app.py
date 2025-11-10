@@ -573,4 +573,7 @@ def predict_frame():
 if __name__ == '__main__':
     # Bind explicitly for Render (or any container) so port detection succeeds
     port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', port=port)
+    # Optional: serve HTTPS locally to allow camera on LAN IPs
+    use_ssl = os.getenv('USE_ADHOC_SSL', 'false').lower() in ('1', 'true', 'yes')
+    ssl_ctx = 'adhoc' if use_ssl else None
+    app.run(host='0.0.0.0', port=port, ssl_context=ssl_ctx)
