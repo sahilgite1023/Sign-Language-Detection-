@@ -12,8 +12,6 @@ import base64
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 from tensorflow.keras.models import load_model
 import time
-from cvzone.HandTrackingModule import HandDetector
-from cvzone.ClassificationModule import Classifier
 import math
 import csv
 import copy
@@ -40,59 +38,49 @@ required_dirs = ['uploads', 'images/marked/Y', 'images/skeleton/Y', 'images/mark
 for dir_path in required_dirs:
     os.makedirs(dir_path, exist_ok=True)
 
-# Load the pre-trained model
-print("Loading pre-trained model...")
-try:
-    # Get current directory and model paths
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    model_dir = os.path.join(current_dir, 'Model')
-    
-    # Ensure model directory exists
+current_dir = os.path.dirname(os.path.abspath(__file__))
+model_dir = os.path.join(current_dir, 'Model')
+
+# Lazy-loaded models and labels
+letter_model = None
+phrase_model = None
+phrase_labels = None
+
+def load_models_if_needed(load_letter=True, load_phrase=True):
+    global letter_model, phrase_model, phrase_labels
+    # Ensure model dir exists
     if not os.path.exists(model_dir):
         raise FileNotFoundError(f"Model directory not found at {model_dir}")
-    
-    # Define model paths
-    letter_model_path = os.path.join(model_dir, 'sign_language_model_improved.h5')
-    phrase_model_path = os.path.join(model_dir, 'keras_model.h5')
-    labels_path = os.path.join(model_dir, 'labels.txt')
-    
-    # Check if model files exist
-    for path in [letter_model_path, phrase_model_path, labels_path]:
-        if not os.path.exists(path):
-            raise FileNotFoundError(f"Required model file not found: {path}")
-    
-    # Load models with custom_objects to handle compatibility
-    try:
-        # Custom objects to handle DepthwiseConv2D compatibility
-        custom_objects = {
-            'DepthwiseConv2D': tf.keras.layers.DepthwiseConv2D,
-            'Dense': tf.keras.layers.Dense,
-            'Input': tf.keras.layers.Input,
-            'Model': tf.keras.models.Model,
-            'Sequential': tf.keras.models.Sequential
-        }
-        
-        # Load models with custom objects and safe_mode
-        letter_model = load_model(letter_model_path, custom_objects=custom_objects, compile=False, safe_mode=True)
-        phrase_model = load_model(phrase_model_path, custom_objects=custom_objects, compile=False, safe_mode=True)
-        
-        # Compile models
-        letter_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-        phrase_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-    except Exception as e:
-        raise Exception(f"Error loading models: {e}")
-    
-    # Load labels
-    try:
-        with open(labels_path, 'r') as f:
-            phrase_labels = [line.strip().split(' ')[1] for line in f.readlines()]
-    except Exception as e:
-        raise Exception(f"Error loading labels: {e}")
-    
-    print("Pre-trained models and labels loaded successfully")
-except Exception as e:
-    print(f"Error during model initialization: {e}")
-    raise
+    # Common custom objects
+    custom_objects = {
+        'DepthwiseConv2D': tf.keras.layers.DepthwiseConv2D,
+        'Dense': tf.keras.layers.Dense,
+        'Input': tf.keras.layers.Input,
+        'Model': tf.keras.models.Model,
+        'Sequential': tf.keras.models.Sequential
+    }
+    if load_letter and letter_model is None:
+        letter_model_path = os.path.join(model_dir, 'sign_language_model_improved.h5')
+        if os.path.exists(letter_model_path):
+            m = load_model(letter_model_path, custom_objects=custom_objects, compile=False, safe_mode=True)
+            m.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+            letter_model = m
+    if load_phrase and phrase_model is None:
+        phrase_model_path = os.path.join(model_dir, 'keras_model.h5')
+        if os.path.exists(phrase_model_path):
+            m = load_model(phrase_model_path, custom_objects=custom_objects, compile=False, safe_mode=True)
+            m.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+            phrase_model = m
+        labels_path = os.path.join(model_dir, 'labels.txt')
+        if phrase_labels is None and os.path.exists(labels_path):
+            with open(labels_path, 'r') as f:
+                # handle either "index label" lines or plain label per line
+                raw = [line.strip() for line in f.readlines()]
+                parsed = []
+                for line in raw:
+                    parts = line.split()
+                    parsed.append(parts[-1] if len(parts) > 1 else parts[0])
+                phrase_labels = parsed
 
 # Image size for MobileNetV2
 IMG_SIZE = 224
@@ -105,11 +93,9 @@ hands = mp_hands.Hands(
     min_tracking_confidence=0.5
 )
 
-# Initialize webcam and real-time recognition components
+# Initialize webcam flags (not used in Render path)
 camera = None
 is_camera_active = False
-detector = HandDetector(maxHands=1)
-classifier = Classifier(os.path.join(current_dir, 'Model', 'keras_model.h5'), os.path.join(current_dir, 'Model', 'labels.txt'))
 
 # Initialize keypoint classifier for A-Z detection
 keypoint_classifier = KeyPointClassifier(
@@ -204,6 +190,8 @@ def predict_on_frame(img):
                 pre_processed_landmark_list = pre_process_landmark(landmark_list)
                 predicted_text = '-'; confidence = 0.0
                 if recognition_mode == 'phrase':
+                    # Ensure phrase model is loaded lazily
+                    load_models_if_needed(load_letter=False, load_phrase=True)
                     imgWhite = np.ones((imgSize, imgSize, 3), np.uint8) * 255
                     imgCrop = img[y_min:y_max, x_min:x_max]
                     aspectRatio = (y_max - y_min) / (x_max - x_min) if (x_max - x_min) > 0 else 1
@@ -221,13 +209,23 @@ def predict_on_frame(img):
                             imgResize = cv2.resize(imgCrop, (imgSize, hCal))
                             hGap = math.ceil((imgSize-hCal)/2)
                             imgWhite[hGap:hGap+hCal, :] = imgResize
-                    prediction, index = classifier.getPrediction(imgWhite, draw=False)
-                    predicted_text = labels[index]; confidence = float(np.max(prediction))
+                    if phrase_model is not None:
+                        img_array = cv2.resize(imgWhite, (IMG_SIZE, IMG_SIZE))
+                        img_array = preprocess_input(img_array)
+                        img_array = np.expand_dims(img_array, axis=0)
+                        prediction = phrase_model.predict(img_array, verbose=0)
+                        index = int(np.argmax(prediction[0]))
+                        label_list = phrase_labels if phrase_labels else labels
+                        predicted_text = label_list[index] if index < len(label_list) else '-'
+                        confidence = float(np.max(prediction[0]))
+                    else:
+                        predicted_text = '-'; confidence = 0.0
                 else:
                     if classifier_type == 'keypoint':
                         hand_sign_id = keypoint_classifier(pre_processed_landmark_list)
                         predicted_text = keypoint_classifier_labels[hand_sign_id]; confidence = 1.0
                     else:
+                        load_models_if_needed(load_letter=True, load_phrase=False)
                         imgWhite = np.ones((imgSize, imgSize, 3), np.uint8) * 255
                         imgCrop = img[y_min:y_max, x_min:x_max]
                         aspectRatio = (y_max - y_min) / (x_max - x_min) if (x_max - x_min) > 0 else 1
@@ -248,7 +246,7 @@ def predict_on_frame(img):
                         img_array = cv2.resize(imgWhite, (IMG_SIZE, IMG_SIZE))
                         img_array = preprocess_input(img_array)
                         img_array = np.expand_dims(img_array, axis=0)
-                        prediction = letter_model.predict(img_array)
+                        prediction = letter_model.predict(img_array, verbose=0)
                         predicted_text = chr(ord('A') + np.argmax(prediction[0]))
                         confidence = float(np.max(prediction[0]))
                 # Assign left/right order
