@@ -2,7 +2,7 @@
 
 Real‑time sign language recognition web app built with Flask, OpenCV, MediaPipe, and TensorFlow/TFLite. It detects hand landmarks from your webcam and classifies them into letters/phrases, streaming results to a clean, responsive UI.
 
-![App Screenshot](./image.png)
+Tip: add your own screenshot (e.g., `static/img/screenshot.png`) and reference it here if you want a visual preview on GitHub.
 
 ## Features
 
@@ -89,7 +89,7 @@ Camera note: The server process reads frames from the local webcam (OpenCV). For
 ## Team
 
 - Sahil Gite — Lead Developer — GitHub: https://github.com/sahilgite1023 — LinkedIn: https://www.linkedin.com/in/sahilgite2003
-- Anushka Shinde — ML Engineer — GitHub: https://github.com/anushkashinde7188 — Portfolio: https://anushkashinde.netlify.app/
+- Anushka Shinde — ML Engineer — GitHub: https://github.com/anushkashinde7188 — Portfolio: https://anushkashinde.netlify.app/ — Email: anushkashinde1504@gmail.com
 - Shriram Mange — UI/UX Designer — GitHub: https://github.com/Shriram2005 — Portfolio: https://shrirammange.tech
 
 ## License
