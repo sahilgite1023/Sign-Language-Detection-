@@ -568,8 +568,6 @@
                                 overlayCtx.fillText(label, boxX + padding, boxY + 19);
                             });
                         }
-                            console.error('predict_frame error', e);
-                            document.getElementById('detect-status').textContent = 'Prediction error. Retrying…';
                         if (data.left && data.left !== '-' && data.left !== lastLeft) {
                             const el = document.getElementById('recognized-left');
                             el.textContent = (el.textContent === '-' ? '' : el.textContent) + data.left;

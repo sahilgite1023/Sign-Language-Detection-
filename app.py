@@ -1,22 +1,17 @@
 from flask import Flask, render_template, request, jsonify, Response
 import os
-from tensorflow.keras.preprocessing import image
 from werkzeug.utils import secure_filename
 import cv2
 import mediapipe as mp
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras.layers import Dense
 import numpy as np
 import base64
-from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
-from tensorflow.keras.models import load_model
 import time
 import math
 import csv
 import copy
 import itertools
 from keypoint_classifier.keypoint_classifier import KeyPointClassifier
+import importlib
 
 counter = 0
 alpha = 'A'
@@ -46,29 +41,50 @@ letter_model = None
 phrase_model = None
 phrase_labels = None
 
+# Feature flag: run in lightweight keypoint-only mode (no TensorFlow import)
+KEYPOINT_ONLY = os.getenv('KEYPOINT_ONLY', 'false').lower() in ('1', 'true', 'yes')
+# Placeholder for lazily injected keras preprocess function
+preprocess_input = None
+
 def load_models_if_needed(load_letter=True, load_phrase=True):
+    """Lazily import TensorFlow and load models only when needed.
+    When KEYPOINT_ONLY is true, this is a no-op.
+    """
     global letter_model, phrase_model, phrase_labels
+    if KEYPOINT_ONLY:
+        return
+    # Dynamically import TensorFlow modules only when required
+    tf = importlib.import_module('tensorflow')
+    keras_models_mod = importlib.import_module('tensorflow.keras.models')
+    keras_apps_mod = importlib.import_module('tensorflow.keras.applications.mobilenet_v2')
+    keras_layers_mod = importlib.import_module('tensorflow.keras.layers')
+    # Expose selected helpers to module globals for later use
+    globals()['preprocess_input'] = getattr(keras_apps_mod, 'preprocess_input')
+    _load_model = getattr(keras_models_mod, 'load_model')
+
     # Ensure model dir exists
     if not os.path.exists(model_dir):
         raise FileNotFoundError(f"Model directory not found at {model_dir}")
-    # Common custom objects
+
+    # Build custom object map without importing symbols at module top
     custom_objects = {
-        'DepthwiseConv2D': tf.keras.layers.DepthwiseConv2D,
-        'Dense': tf.keras.layers.Dense,
-        'Input': tf.keras.layers.Input,
-        'Model': tf.keras.models.Model,
-        'Sequential': tf.keras.models.Sequential
+        'DepthwiseConv2D': getattr(keras_layers_mod, 'DepthwiseConv2D'),
+        'Dense': getattr(keras_layers_mod, 'Dense'),
+        'Input': getattr(importlib.import_module('tensorflow.keras'), 'Input'),
+        'Model': getattr(importlib.import_module('tensorflow.keras.models'), 'Model'),
+        'Sequential': getattr(importlib.import_module('tensorflow.keras.models'), 'Sequential'),
     }
     if load_letter and letter_model is None:
         letter_model_path = os.path.join(model_dir, 'sign_language_model_improved.h5')
         if os.path.exists(letter_model_path):
-            m = load_model(letter_model_path, custom_objects=custom_objects, compile=False, safe_mode=True)
+            m = _load_model(letter_model_path, custom_objects=custom_objects, compile=False, safe_mode=True)
+            # Compile for predict usage (optional but harmless)
             m.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
             letter_model = m
     if load_phrase and phrase_model is None:
         phrase_model_path = os.path.join(model_dir, 'keras_model.h5')
         if os.path.exists(phrase_model_path):
-            m = load_model(phrase_model_path, custom_objects=custom_objects, compile=False, safe_mode=True)
+            m = _load_model(phrase_model_path, custom_objects=custom_objects, compile=False, safe_mode=True)
             m.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
             phrase_model = m
         labels_path = os.path.join(model_dir, 'labels.txt')
@@ -176,6 +192,15 @@ def predict_on_frame(img):
         imgRGB.flags.writeable = False
         results = hands.process(imgRGB)
         imgRGB.flags.writeable = True
+        if not results.multi_hand_landmarks:
+            # Quick return when no hands to minimize server load
+            return {
+                'hands': [],
+                'left': '-',
+                'right': '-',
+                'left_conf': 0.0,
+                'right_conf': 0.0
+            }
         if results.multi_hand_landmarks:
             assigned = 0
             for hand_landmarks in results.multi_hand_landmarks:
@@ -190,38 +215,42 @@ def predict_on_frame(img):
                 pre_processed_landmark_list = pre_process_landmark(landmark_list)
                 predicted_text = '-'; confidence = 0.0
                 if recognition_mode == 'phrase':
-                    # Ensure phrase model is loaded lazily
-                    load_models_if_needed(load_letter=False, load_phrase=True)
-                    imgWhite = np.ones((imgSize, imgSize, 3), np.uint8) * 255
-                    imgCrop = img[y_min:y_max, x_min:x_max]
-                    aspectRatio = (y_max - y_min) / (x_max - x_min) if (x_max - x_min) > 0 else 1
-                    if aspectRatio > 1:
-                        k = imgSize / (y_max - y_min)
-                        wCal = math.ceil(k * (x_max - x_min))
-                        if wCal > 0:
-                            imgResize = cv2.resize(imgCrop, (wCal, imgSize))
-                            wGap = math.ceil((imgSize-wCal)/2)
-                            imgWhite[:, wGap:wGap+wCal] = imgResize
-                    else:
-                        k = imgSize / (x_max - x_min)
-                        hCal = math.ceil(k * (y_max - y_min))
-                        if hCal > 0:
-                            imgResize = cv2.resize(imgCrop, (imgSize, hCal))
-                            hGap = math.ceil((imgSize-hCal)/2)
-                            imgWhite[hGap:hGap+hCal, :] = imgResize
-                    if phrase_model is not None:
-                        img_array = cv2.resize(imgWhite, (IMG_SIZE, IMG_SIZE))
-                        img_array = preprocess_input(img_array)
-                        img_array = np.expand_dims(img_array, axis=0)
-                        prediction = phrase_model.predict(img_array, verbose=0)
-                        index = int(np.argmax(prediction[0]))
-                        label_list = phrase_labels if phrase_labels else labels
-                        predicted_text = label_list[index] if index < len(label_list) else '-'
-                        confidence = float(np.max(prediction[0]))
-                    else:
+                    if KEYPOINT_ONLY:
                         predicted_text = '-'; confidence = 0.0
+                    else:
+                    # Ensure phrase model is loaded lazily
+                        load_models_if_needed(load_letter=False, load_phrase=True)
+                        imgWhite = np.ones((imgSize, imgSize, 3), np.uint8) * 255
+                        imgCrop = img[y_min:y_max, x_min:x_max]
+                        aspectRatio = (y_max - y_min) / (x_max - x_min) if (x_max - x_min) > 0 else 1
+                        if aspectRatio > 1:
+                            k = imgSize / (y_max - y_min)
+                            wCal = math.ceil(k * (x_max - x_min))
+                            if wCal > 0:
+                                imgResize = cv2.resize(imgCrop, (wCal, imgSize))
+                                wGap = math.ceil((imgSize-wCal)/2)
+                                imgWhite[:, wGap:wGap+wCal] = imgResize
+                        else:
+                            k = imgSize / (x_max - x_min)
+                            hCal = math.ceil(k * (y_max - y_min))
+                            if hCal > 0:
+                                imgResize = cv2.resize(imgCrop, (imgSize, hCal))
+                                hGap = math.ceil((imgSize-hCal)/2)
+                                imgWhite[hGap:hGap+hCal, :] = imgResize
+                        if phrase_model is not None:
+                            img_array = cv2.resize(imgWhite, (IMG_SIZE, IMG_SIZE))
+                            img_array = preprocess_input(img_array)
+                            img_array = np.expand_dims(img_array, axis=0)
+                            prediction = phrase_model.predict(img_array, verbose=0)
+                            index = int(np.argmax(prediction[0]))
+                            label_list = phrase_labels if phrase_labels else labels
+                            predicted_text = label_list[index] if index < len(label_list) else '-'
+                            confidence = float(np.max(prediction[0]))
+                        else:
+                            predicted_text = '-'; confidence = 0.0
                 else:
-                    if classifier_type == 'keypoint':
+                    # Force keypoint path when KEYPOINT_ONLY is enabled
+                    if KEYPOINT_ONLY or classifier_type == 'keypoint':
                         hand_sign_id = keypoint_classifier(pre_processed_landmark_list)
                         predicted_text = keypoint_classifier_labels[hand_sign_id]; confidence = 1.0
                     else:
@@ -271,13 +300,21 @@ def predict_on_frame(img):
 @app.route('/set_mode', methods=['POST'])
 def set_mode():
     global recognition_mode
-    recognition_mode = request.json.get('mode', 'letter')
+    requested = request.json.get('mode', 'letter')
+    if KEYPOINT_ONLY and requested == 'phrase':
+        recognition_mode = 'letter'
+        return jsonify({'status': 'success', 'mode': recognition_mode, 'note': 'Phrase mode disabled in keypoint-only deployment'}), 200
+    recognition_mode = requested
     return jsonify({'status': 'success', 'mode': recognition_mode})
 
 @app.route('/set_classifier', methods=['POST'])
 def set_classifier():
     global classifier_type
-    classifier_type = request.json.get('type', 'keypoint')
+    requested = request.json.get('type', 'keypoint')
+    if KEYPOINT_ONLY and requested != 'keypoint':
+        classifier_type = 'keypoint'
+        return jsonify({'status': 'success', 'type': classifier_type, 'note': 'CNN classifier disabled in keypoint-only deployment'}), 200
+    classifier_type = requested
     return jsonify({'status': 'success', 'type': classifier_type})
 
 def generate_frames():
@@ -370,26 +407,9 @@ def generate_frames():
                         confidence = 0.0
                         try:
                             if recognition_mode == 'phrase':
-                                imgWhite = np.ones((imgSize, imgSize, 3), np.uint8) * 255
-                                imgCrop = img[y_min:y_max, x_min:x_max]
-                                aspectRatio = (y_max - y_min) / (x_max - x_min) if (x_max - x_min) > 0 else 1
-                                if aspectRatio > 1:
-                                    k = imgSize / (y_max - y_min)
-                                    wCal = math.ceil(k * (x_max - x_min))
-                                    if wCal > 0:
-                                        imgResize = cv2.resize(imgCrop, (wCal, imgSize))
-                                        wGap = math.ceil((imgSize-wCal)/2)
-                                        imgWhite[:, wGap:wGap+wCal] = imgResize
-                                else:
-                                    k = imgSize / (x_max - x_min)
-                                    hCal = math.ceil(k * (y_max - y_min))
-                                    if hCal > 0:
-                                        imgResize = cv2.resize(imgCrop, (imgSize, hCal))
-                                        hGap = math.ceil((imgSize-hCal)/2)
-                                        imgWhite[hGap:hGap+hCal, :] = imgResize
-                                prediction, index = classifier.getPrediction(imgWhite, draw=False)
-                                predicted_text = labels[index]
-                                confidence = float(np.max(prediction))
+                                # Phrase mode not supported in legacy video feed path for keypoint-only optimization.
+                                predicted_text = '-'
+                                confidence = 0.0
                             else:
                                 if classifier_type == 'keypoint':
                                     hand_sign_id = keypoint_classifier(pre_processed_landmark_list)

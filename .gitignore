@@ -33,6 +33,7 @@ dist/
 uploads/
 images/
 training_history.png
+image.png
 
 # Models (keep small ones tracked; ignore large checkpoints if added later)
 **/*.ckpt
