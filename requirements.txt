@@ -1,12 +1,10 @@
 # Deployment requirements (lightweight, keypoint-only runtime):
 # - Removed TensorFlow; using Mediapipe + TFLite keypoint classifier only.
 # - If you re-enable phrase/CNN modes, add tensorflow==2.12.0 back and redeploy.
-flask==2.3.3
-numpy==1.23.5
-opencv-python==4.8.1.78
+flask
+gunicorn
+tensorflow==2.12.0
 mediapipe==0.10.11
-protobuf==3.20.3
-gunicorn==21.2.0
-
-# Ensure TFLite runtime is available without full TensorFlow
-tflite-runtime==2.14.0
+opencv-python
+numpy
+matplotlib
